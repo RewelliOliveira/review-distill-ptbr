@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets
+.env
+
+# Data (raw and bulk-labeled data are published on Hugging Face, not versioned)
+data/raw/*
+!data/raw/.gitkeep
+data/labeled/*
+!data/labeled/.gitkeep
+
+# Models, checkpoints and weights
+checkpoints/
+outputs/
+models/
+wandb/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+*.gguf
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
