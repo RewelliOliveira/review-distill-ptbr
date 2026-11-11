@@ -28,22 +28,23 @@ def build_text(title: object, message: object) -> str:
     return ". ".join(parts)
 
 
+def add_text_column(raw: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy of the raw reviews with a normalized `text` column (title + message)."""
+    titles, messages = raw["review_comment_title"], raw["review_comment_message"]
+    return raw.assign(text=[build_text(t, m) for t, m in zip(titles, messages, strict=True)])
+
+
 def prepare_reviews(raw: pd.DataFrame) -> pd.DataFrame:
     """Return one row per usable review: columns review_id, score, text.
 
     Drops (by design, see README): reviews without text (rating only), repeated
-    review_ids (Olist reuses an id across orders) and exact duplicate texts
+    review_ids (Olist reuses an id across orders) and duplicate texts, ignoring case
     (dedup before splitting avoids train/test leakage).
     """
-    df = raw.assign(
-        text=[
-            build_text(t, m)
-            for t, m in zip(raw["review_comment_title"], raw["review_comment_message"], strict=True)
-        ]
-    )
+    df = add_text_column(raw)
     df = df[df["text"] != ""]
     df = df.drop_duplicates(subset="review_id", keep="first")
-    df = df.drop_duplicates(subset="text", keep="first")
+    df = df[~df["text"].str.casefold().duplicated(keep="first")]
     return df[["review_id", "review_score", "text"]].rename(columns={"review_score": "score"})
 
 
