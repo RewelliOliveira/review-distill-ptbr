@@ -13,12 +13,13 @@ def test_build_text() -> None:
 def test_prepare_reviews_drops_empty_and_duplicates() -> None:
     raw = pd.DataFrame(
         {
-            "review_id": ["a", "b", "c", "a", "d"],
-            "review_score": [5, 1, 3, 5, 4],
-            "review_comment_title": [None, None, None, None, None],
-            "review_comment_message": ["bom", None, "ruim", "outro pedido", "bom"],
+            "review_id": ["a", "b", "c", "a", "d", "e"],
+            "review_score": [5, 1, 3, 5, 4, 5],
+            "review_comment_title": [None, None, None, None, None, None],
+            "review_comment_message": ["bom", None, "ruim", "outro pedido", "bom", "BOM"],
         }
     )
     out = prepare_reviews(raw)
-    assert out["review_id"].tolist() == ["a", "c"]  # b empty, 2nd a repeated id, d same text
+    # b empty, 2nd a repeated id, d same text, e same text ignoring case
+    assert out["review_id"].tolist() == ["a", "c"]
     assert out.columns.tolist() == ["review_id", "score", "text"]
