@@ -113,3 +113,42 @@ Debatable, not counted: paid for home delivery but had to pick up at the post of
 Known weakness carried into the dataset: flash-lite does not always apply "not_as_described ⇒
 needs_contact" (also seen on rows 1-60: "Achei o produto muito pequeno, e o material fraco").
 The hand-reviewed gold set will measure how often this happens.
+
+**Decision:** v3 approved under the stopping rule (3 clear errors on 60 unseen reviews). No v4.
+
+## Full labeling run (v3)
+
+Teacher `gemini-3.5-flash-lite`, prompt v3, thinking `low`, seed 42, batches of 20, client-side
+limit of 4 requests/min. The run was interrupted and resumed (cache by review id), so the
+labels come from several sessions on 2026-11-11, all with the same model and prompt.
+
+| Sample | Reviews | Valid | Invalid | Requests | Failed requests (retried later) | 503 retries | 429 |
+|---|---|---|---|---|---|---|---|
+| pool (train/val) | 2,000 | 2,000 | 0 | 101 | 1 | 43 | 0 |
+| gold (pre-label for hand review) | 150 | 150 | 0 | 10 | 2 | 20 | 0 |
+
+Time: 1,718 s summed over all requests (API time including retries); the final resumed session
+(1,760 pool + 70 gold reviews) took 1,477 s wall clock, dominated by the 4 req/min limit.
+
+Label distribution:
+
+| main_issue | pool | % | gold | % |
+|---|---|---|---|---|
+| none | 784 | 39.2 | 56 | 37.3 |
+| missing_item | 218 | 10.9 | 10 | 6.7 |
+| not_delivered | 205 | 10.2 | 22 | 14.7 |
+| poor_quality | 185 | 9.2 | 15 | 10.0 |
+| late_delivery | 146 | 7.3 | 17 | 11.3 |
+| not_as_described | 135 | 6.8 | 4 | 2.7 |
+| wrong_item | 117 | 5.8 | 8 | 5.3 |
+| damaged | 73 | 3.6 | 7 | 4.7 |
+| other | 69 | 3.5 | 8 | 5.3 |
+| bad_service | 68 | 3.4 | 3 | 2.0 |
+
+| needs_contact | pool | % | gold | % |
+|---|---|---|---|---|
+| true | 798 | 39.9 | 57 | 38.0 |
+| false | 1,202 | 60.1 | 93 | 62.0 |
+
+The gold labels above are the teacher's pre-labels only (`data/gold/gemini_labels.jsonl`); the
+reference labels are the hand-reviewed ones in `data/gold/gold_labels.jsonl`.
