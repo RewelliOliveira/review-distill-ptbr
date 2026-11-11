@@ -8,6 +8,8 @@ Design:
   process can be interrupted and resumed at any point.
 - Transient API errors (429 / 5xx) are retried with exponential backoff. If retries are
   exhausted the run stops cleanly (typically the daily quota) and can be resumed later.
+- Every request is logged (latency, attempts, 429s, token usage) to an optional JSONL, to
+  diagnose slow or throttled runs.
 """
 
 import json
@@ -28,6 +30,7 @@ from review_distill.schema import LabeledReview, gemini_batch_response_schema
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gemini-3.8-flash"
+DEFAULT_THINKING_LEVEL = "minimal"  # classification needs little reasoning; keeps latency low
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_RAW_CHARS = 2000
 
@@ -35,9 +38,19 @@ MAX_RAW_CHARS = 2000
 class TransientAPIError(Exception):
     """Retryable API error (rate limit or server error)."""
 
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        if status is None and message[:3].isdigit():
+            status = int(message[:3])
+        self.status = status
+
 
 class LabelingClient(Protocol):
-    """Anything that turns (system prompt, user prompt) into raw JSON text."""
+    """Anything that turns (system prompt, user prompt) into raw JSON text.
+
+    Clients may also expose `last_usage` (token counts of the last call) and
+    `thinking_level`; both are optional and only used for logging.
+    """
 
     model_name: str
 
@@ -53,17 +66,24 @@ class GeminiClient:
         api_key: str | None = None,
         temperature: float = 0.0,
         seed: int = 42,
+        thinking_level: str | None = DEFAULT_THINKING_LEVEL,
     ) -> None:
         from google import genai
         from google.genai import types
 
         self.model_name = model_name
+        self.thinking_level = thinking_level
+        self.last_usage: dict[str, int | None] = {}
         self._client = genai.Client(api_key=api_key)
+        thinking = (
+            types.ThinkingConfig(thinking_level=thinking_level.upper()) if thinking_level else None
+        )
         self._config = types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=types.Schema.model_validate(gemini_batch_response_schema()),
             temperature=temperature,
             seed=seed,
+            thinking_config=thinking,
         )
 
     def generate_json(self, system_prompt: str, user_prompt: str) -> str:
@@ -76,8 +96,14 @@ class GeminiClient:
             )
         except errors.APIError as e:
             if e.code in RETRYABLE_STATUS:
-                raise TransientAPIError(f"{e.code}: {e.message}") from e
+                raise TransientAPIError(f"{e.code}: {e.message}", status=e.code) from e
             raise
+        usage = response.usage_metadata
+        self.last_usage = {
+            "prompt_tokens": getattr(usage, "prompt_token_count", None),
+            "output_tokens": getattr(usage, "candidates_token_count", None),
+            "thinking_tokens": getattr(usage, "thoughts_token_count", None),
+        }
         return response.text or ""
 
 
@@ -202,23 +228,46 @@ def _batched(seq: Sequence[Any], size: int) -> Iterator[Sequence[Any]]:
         yield seq[i : i + size]
 
 
+@dataclass
+class RequestLog:
+    """What happened in one batch request (including its retries)."""
+
+    attempts: int = 0
+    rate_limited: int = 0  # attempts that failed with 429
+    other_errors: int = 0  # attempts that failed with another retryable error
+    last_call_s: float | None = None  # duration of the final (successful) API call
+    errors: list[str] = field(default_factory=list)
+
+
 def _call_with_retry(
     client: LabelingClient,
     prompt: str,
     config: LabelingConfig,
     sleep: Callable[[float], None],
     rng: random.Random,
+    clock: Callable[[], float],
+    log: RequestLog,
 ) -> str:
     for attempt in range(config.max_retries + 1):
+        log.attempts += 1
+        start = clock()
         try:
-            return client.generate_json(SYSTEM_PROMPT, prompt)
+            raw = client.generate_json(SYSTEM_PROMPT, prompt)
         except TransientAPIError as e:
+            if e.status == 429:
+                log.rate_limited += 1
+            else:
+                log.other_errors += 1
+            log.errors.append(str(e)[:200])
             if attempt == config.max_retries:
                 raise
             delay = min(config.backoff_max_s, config.backoff_base_s * 2**attempt)
             delay *= 1 + rng.random() * 0.25  # jitter
             logger.warning("transient error (%s); retry %d in %.1fs", e, attempt + 1, delay)
             sleep(delay)
+        else:
+            log.last_call_s = clock() - start
+            return raw
     raise AssertionError("unreachable")
 
 
@@ -230,10 +279,12 @@ def label_reviews(
     config: LabelingConfig | None = None,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
+    requests_path: Path | None = None,
 ) -> LabelingStats:
     """Label (review_id, text) pairs, appending results to the JSONL files.
 
     Already-labeled reviews (and, unless retry_invalid, already-invalid ones) are skipped.
+    If `requests_path` is given, one record per batch request is appended to it.
     """
     config = config or LabelingConfig()
     stats = LabelingStats()
@@ -247,6 +298,9 @@ def label_reviews(
     stats.skipped_cached = len(reviews) - len(pending)
 
     meta = {"model": client.model_name, "prompt_version": PROMPT_VERSION}
+    thinking_level = getattr(client, "thinking_level", None)
+    if thinking_level:
+        meta["thinking_level"] = thinking_level
     last_request: float | None = None
 
     for batch in _batched(pending, config.batch_size):
@@ -260,14 +314,29 @@ def label_reviews(
         last_request = clock()
         stats.requests += 1
 
+        log = RequestLog()
+        start = clock()
         try:
-            raw = _call_with_retry(client, build_batch_prompt(batch), config, sleep, rng)
+            raw = _call_with_retry(
+                client, build_batch_prompt(batch), config, sleep, rng, clock, log
+            )
         except TransientAPIError as e:
             stats.stopped_reason = f"retries_exhausted: {e}"
             stats.errors.append(str(e))
+            _log_request(requests_path, stats.requests, batch, log, clock() - start, meta)
             break
 
         valid, invalid = parse_batch_response(raw, batch)
+        _log_request(
+            requests_path,
+            stats.requests,
+            batch,
+            log,
+            clock() - start,
+            meta,
+            n_valid=len(valid),
+            usage=getattr(client, "last_usage", None),
+        )
         now = datetime.now(UTC).isoformat(timespec="seconds")
         append_jsonl(
             labeled_path,
@@ -286,11 +355,45 @@ def label_reviews(
         stats.labeled += len(valid)
         stats.invalid += sum(1 for r in invalid if r["review_id"] is not None)
         logger.info(
-            "request %d: %d valid, %d invalid (total labeled this run: %d)",
+            "request %d: %d valid, %d invalid in %.1fs, %d attempt(s), %d x 429 "
+            "(total labeled this run: %d)",
             stats.requests,
             len(valid),
             len(invalid),
+            clock() - start,
+            log.attempts,
+            log.rate_limited,
             stats.labeled,
         )
 
     return stats
+
+
+def _log_request(
+    path: Path | None,
+    request: int,
+    batch: Sequence[tuple[str, str]],
+    log: RequestLog,
+    total_s: float,
+    meta: dict[str, Any],
+    n_valid: int | None = None,
+    usage: dict[str, int | None] | None = None,
+) -> None:
+    if path is None:
+        return
+    record = {
+        "request": request,
+        "n_reviews": len(batch),
+        "n_valid": n_valid,
+        "ok": n_valid is not None,
+        "total_s": round(total_s, 2),
+        "last_call_s": None if log.last_call_s is None else round(log.last_call_s, 2),
+        "attempts": log.attempts,
+        "rate_limited": log.rate_limited,
+        "other_errors": log.other_errors,
+        "errors": log.errors,
+        **(usage or {}),
+        **meta,
+        "logged_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+    append_jsonl(path, [record])
