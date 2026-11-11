@@ -20,7 +20,13 @@ import os
 from dotenv import load_dotenv
 
 from review_distill.data import LABELED_DIR
-from review_distill.labeling import DEFAULT_MODEL, GeminiClient, LabelingConfig, label_reviews
+from review_distill.labeling import (
+    DEFAULT_MODEL,
+    DEFAULT_THINKING_LEVEL,
+    GeminiClient,
+    LabelingConfig,
+    label_reviews,
+)
 from review_distill.sampling import GOLD_DIR, GOLD_REVIEWS_PATH, POOL_REVIEWS_PATH, load_sample
 
 SAMPLES = {
@@ -46,6 +52,12 @@ def main() -> None:
     parser.add_argument("--rpm", type=float, default=10.0, help="max requests per minute")
     parser.add_argument("--max-retries", type=int, default=5)
     parser.add_argument("--model", default=os.environ.get("GEMINI_MODEL", DEFAULT_MODEL))
+    parser.add_argument(
+        "--thinking-level",
+        choices=["none", "minimal", "low", "medium", "high"],
+        default=os.environ.get("GEMINI_THINKING_LEVEL", DEFAULT_THINKING_LEVEL),
+        help='model reasoning effort ("none" = do not set it)',
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--retry-invalid", action="store_true")
     args = parser.parse_args()
@@ -62,7 +74,8 @@ def main() -> None:
         reviews = reviews.head(args.n)
     pairs = list(zip(reviews["review_id"], reviews["text"], strict=True))
 
-    client = GeminiClient(model_name=args.model, seed=args.seed)
+    thinking_level = None if args.thinking_level == "none" else args.thinking_level
+    client = GeminiClient(model_name=args.model, seed=args.seed, thinking_level=thinking_level)
     config = LabelingConfig(
         batch_size=args.batch_size,
         max_requests=args.max_requests,
@@ -75,6 +88,7 @@ def main() -> None:
         client,
         labeled_path=labeled_path,
         invalid_path=invalid_path,
+        requests_path=LABELED_DIR / f"requests_{args.sample}.jsonl",
         config=config,
     )
     print(

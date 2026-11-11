@@ -195,6 +195,60 @@ def test_stops_cleanly_when_retries_exhausted(paths) -> None:
     assert not paths[1].exists()  # rate-limited reviews are not marked invalid
 
 
+def test_request_log_records_attempts_429s_and_latency(paths, tmp_path) -> None:
+    requests_path = tmp_path / "requests.jsonl"
+    clock = FakeClock()
+
+    def responder(ids, n_call):
+        if n_call == 1:
+            raise TransientAPIError("429: rate limited")
+        if n_call == 2:
+            raise TransientAPIError("503: unavailable")
+        clock.now += 3.0  # the successful call takes 3s
+        return json.dumps([item(i) for i in ids])
+
+    client = FakeClient(responder)
+    client.last_usage = {"prompt_tokens": 10, "output_tokens": 5, "thinking_tokens": 0}
+    config = LabelingConfig(backoff_base_s=1.0)
+    label_reviews(
+        REVIEWS[:2], client, *paths, config, clock.sleep, clock, requests_path=requests_path
+    )
+
+    [log] = list(read_jsonl(requests_path))
+    assert log["ok"] is True and log["n_valid"] == 2
+    assert log["attempts"] == 3 and log["rate_limited"] == 1 and log["other_errors"] == 1
+    assert log["last_call_s"] == 3.0
+    assert log["total_s"] == round(sum(clock.sleeps) + 3.0, 2)
+    assert log["thinking_tokens"] == 0 and log["model"] == "fake-model"
+
+
+def test_request_log_records_exhausted_request(paths, tmp_path) -> None:
+    requests_path = tmp_path / "requests.jsonl"
+
+    def responder(ids, n_call):
+        raise TransientAPIError("429: quota exceeded")
+
+    clock = FakeClock()
+    config = LabelingConfig(max_retries=1)
+    label_reviews(
+        REVIEWS[:2],
+        FakeClient(responder),
+        *paths,
+        config,
+        clock.sleep,
+        clock,
+        requests_path=requests_path,
+    )
+    [log] = list(read_jsonl(requests_path))
+    assert log["ok"] is False and log["attempts"] == 2 and log["rate_limited"] == 2
+
+
+def test_transient_error_parses_status() -> None:
+    assert TransientAPIError("429: x").status == 429
+    assert TransientAPIError("boom", status=503).status == 503
+    assert TransientAPIError("boom").status is None
+
+
 def test_non_retryable_error_propagates(paths) -> None:
     def responder(ids, _):
         raise ValueError("bad api key")
