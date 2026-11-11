@@ -80,7 +80,9 @@ Os textos são curtos (mediana de 10 palavras, máximo de 48) e as avaliações 
 uv sync                                        # dependências (CPU)
 cp .env.example .env                           # preencher GOOGLE_API_KEY
 uv run python scripts/download_data.py         # baixa os dados da Olist para data/raw/
-uv run python scripts/label.py --n 500         # rotula com o Gemini (retomável)
+uv run python scripts/make_samples.py          # separa o teste ouro (150) e o pool (2.000)
+uv run python scripts/label.py --sample pool   # rotula o pool com o Gemini (retomável)
+uv run python scripts/label.py --sample gold   # pré-rotula o ouro para revisão manual
 uv run pytest
 ```
 

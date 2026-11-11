@@ -37,7 +37,8 @@ Qualquer mudança no schema exige re-rotular os dados afetados e atualizar os te
 
 - `uv sync` — instalar dependências
 - `uv run python scripts/download_data.py` — baixar dados da Olist (requer Kaggle API token)
-- `uv run python scripts/label.py --n 500` — rotular com Gemini (retomável)
+- `uv run python scripts/make_samples.py` — separar teste ouro e pool de treino/validação (estratificados por nota)
+- `uv run python scripts/label.py --sample pool|gold [--n N]` — rotular com Gemini (retomável)
 - `uv run python scripts/make_splits.py` — gerar train/val/test
 - `uv run python scripts/evaluate.py --model <nome>` — avaliar no teste ouro
 - `uv run pytest` / `uv run ruff check .` / `uv run ruff format .`
