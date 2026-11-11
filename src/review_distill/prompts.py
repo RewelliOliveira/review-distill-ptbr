@@ -3,7 +3,7 @@
 import json
 from collections.abc import Sequence
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 
 SYSTEM_PROMPT = """\
 You analyze customer reviews from a Brazilian e-commerce marketplace (written in Portuguese)
@@ -19,6 +19,16 @@ For each review, classify every aspect as "positive", "negative" or "not_mention
 Use "not_mentioned" when the review does not address the aspect, even indirectly.
 Generic praise ("ótimo", "recomendo") without a specific aspect does not make any aspect positive,
 except that "chegou rápido"/"antes do prazo" is positive delivery_time.
+- A different item than the one ordered (wrong model, color, size or variant) is an order_accuracy
+  problem only; do not also mark as_described negative. Use as_described when the item ordered
+  arrived but differs from the listing.
+  Example: "Pedi a camiseta azul e veio verde" -> order_accuracy negative, as_described
+  not_mentioned, main_issue wrong_item.
+- Damage from transport or handling (broken, dented, crushed) is not a product_quality problem:
+  mark packaging (if the packaging is mentioned) and main_issue damaged; leave product_quality
+  not_mentioned unless the review also judges the product itself.
+  Example: "A caixa veio amassada e a jarra chegou quebrada" -> packaging negative,
+  product_quality not_mentioned, main_issue damaged.
 
 main_issue is the single most important problem the customer reports:
 none, late_delivery, not_delivered, wrong_item, missing_item, damaged, poor_quality,
@@ -34,6 +44,10 @@ not_as_described, bad_service, other.
 needs_contact is true when the customer has an unresolved problem that requires action from the
 company (product not received, wrong/missing/damaged item, asks for refund, exchange or a reply),
 and false otherwise (including complaints about a problem that is already resolved).
+A product that differs from the listing (not_as_described) is an unresolved problem: needs_contact
+is true even if the customer does not explicitly ask for anything.
+  Example: "O tamanho é bem menor do que dizia o anúncio" -> as_described negative,
+  main_issue not_as_described, needs_contact true.
 
 Return one object per review, using exactly the review_id given in the input. Do not skip reviews.
 """
