@@ -30,7 +30,7 @@ from review_distill.schema import LabeledReview, gemini_batch_response_schema
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gemini-3.8-flash"
-DEFAULT_THINKING_LEVEL = "minimal"  # classification needs little reasoning; keeps latency low
+DEFAULT_THINKING_LEVEL = "low"  # lowest level gemini-3.8-flash accepts; classification is simple
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_RAW_CHARS = 2000
 
