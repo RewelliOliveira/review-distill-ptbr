@@ -1,0 +1,119 @@
+{
+  "model": "tfidf-logreg",
+  "evaluated_at": "2026-11-13T18:30:48+00:00",
+  "gold_set": {
+    "path": "data/gold/gold_labels.jsonl",
+    "n": 150
+  },
+  "metrics": {
+    "n": 150,
+    "json_valid_pct": 100.0,
+    "aspects_macro_f1": 0.6896,
+    "aspect_f1": {
+      "delivery_time": 0.8423,
+      "product_quality": 0.7141,
+      "as_described": 0.5058,
+      "order_accuracy": 0.7843,
+      "packaging": 0.6276,
+      "customer_service": 0.6636
+    },
+    "main_issue_macro_f1": 0.6324,
+    "main_issue_accuracy": 0.74,
+    "main_issue_f1_per_class": {
+      "none": 0.8411,
+      "late_delivery": 0.6471,
+      "not_delivered": 0.8333,
+      "wrong_item": 0.6667,
+      "missing_item": 0.8182,
+      "damaged": 0.6,
+      "poor_quality": 0.7097,
+      "not_as_described": 0.5,
+      "bad_service": 0.3333,
+      "other": 0.375
+    },
+    "main_issue_support": {
+      "none": 56,
+      "late_delivery": 14,
+      "not_delivered": 23,
+      "wrong_item": 8,
+      "missing_item": 10,
+      "damaged": 6,
+      "poor_quality": 15,
+      "not_as_described": 5,
+      "bad_service": 2,
+      "other": 11
+    },
+    "needs_contact_f1": 0.9043,
+    "needs_contact_precision": 0.9123,
+    "needs_contact_recall": 0.8966,
+    "exact_match_pct": 42.6667,
+    "latency_ms_mean": 2.9252,
+    "latency_ms_p50": 2.7814,
+    "latency_ms_p95": 3.7757
+  },
+  "config": {
+    "tfidf": {
+      "lowercase": true,
+      "strip_accents": "unicode",
+      "ngram_range": [
+        1,
+        2
+      ],
+      "min_df": 2,
+      "sublinear_tf": true
+    },
+    "logreg": {
+      "C": 1.0,
+      "class_weight": "balanced",
+      "max_iter": 2000
+    },
+    "seed": 42,
+    "vocabulary_size": 3892,
+    "train_size": 1800,
+    "train_s": 16.54,
+    "val_metrics": {
+      "n": 200,
+      "json_valid_pct": 100.0,
+      "aspects_macro_f1": 0.7549,
+      "aspect_f1": {
+        "delivery_time": 0.88,
+        "product_quality": 0.7665,
+        "as_described": 0.8484,
+        "order_accuracy": 0.7339,
+        "packaging": 0.6246,
+        "customer_service": 0.6762
+      },
+      "main_issue_macro_f1": 0.7382,
+      "main_issue_accuracy": 0.815,
+      "main_issue_f1_per_class": {
+        "none": 0.9221,
+        "late_delivery": 0.8571,
+        "not_delivered": 0.8,
+        "wrong_item": 0.8333,
+        "missing_item": 0.8095,
+        "damaged": 0.6667,
+        "poor_quality": 0.625,
+        "not_as_described": 0.7407,
+        "bad_service": 0.4,
+        "other": 0.7273
+      },
+      "main_issue_support": {
+        "none": 78,
+        "late_delivery": 15,
+        "not_delivered": 21,
+        "wrong_item": 12,
+        "missing_item": 22,
+        "damaged": 7,
+        "poor_quality": 18,
+        "not_as_described": 13,
+        "bad_service": 7,
+        "other": 7
+      },
+      "needs_contact_f1": 0.8659,
+      "needs_contact_precision": 0.8659,
+      "needs_contact_recall": 0.8659,
+      "exact_match_pct": 40.5
+    },
+    "latency_mode": "single review per call, CPU"
+  }
+}
