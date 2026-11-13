@@ -1,0 +1,67 @@
+{
+  "model": "gemini-teacher",
+  "evaluated_at": "2026-11-13T18:30:28+00:00",
+  "gold_set": {
+    "path": "data/gold/gold_labels.jsonl",
+    "n": 150
+  },
+  "metrics": {
+    "n": 150,
+    "json_valid_pct": 100.0,
+    "aspects_macro_f1": 0.9703,
+    "aspect_f1": {
+      "delivery_time": 0.9713,
+      "product_quality": 0.978,
+      "as_described": 0.9618,
+      "order_accuracy": 0.9906,
+      "packaging": 0.9512,
+      "customer_service": 0.9691
+    },
+    "main_issue_macro_f1": 0.921,
+    "main_issue_accuracy": 0.96,
+    "main_issue_f1_per_class": {
+      "none": 1.0,
+      "late_delivery": 0.9032,
+      "not_delivered": 0.9778,
+      "wrong_item": 0.875,
+      "missing_item": 1.0,
+      "damaged": 0.9231,
+      "poor_quality": 1.0,
+      "not_as_described": 0.8889,
+      "bad_service": 0.8,
+      "other": 0.8421
+    },
+    "main_issue_support": {
+      "none": 56,
+      "late_delivery": 14,
+      "not_delivered": 23,
+      "wrong_item": 8,
+      "missing_item": 10,
+      "damaged": 6,
+      "poor_quality": 15,
+      "not_as_described": 5,
+      "bad_service": 2,
+      "other": 11
+    },
+    "needs_contact_f1": 0.9565,
+    "needs_contact_precision": 0.9649,
+    "needs_contact_recall": 0.9483,
+    "exact_match_pct": 89.3333,
+    "latency_ms_mean": 372.4667,
+    "latency_ms_p50": 322.5,
+    "latency_ms_p95": 704.0
+  },
+  "config": {
+    "model": "gemini-3.5-flash-lite",
+    "prompt_version": "v3",
+    "thinking_level": "low",
+    "temperature": 0.0,
+    "seed": 42,
+    "batch_size": 20,
+    "latency_mode": "batched (20 reviews/request, API call incl. network)",
+    "tokens_per_1000_reviews": {
+      "prompt": 121427,
+      "output": 140140
+    }
+  }
+}
