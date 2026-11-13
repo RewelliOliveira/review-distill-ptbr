@@ -88,6 +88,29 @@ uv run pytest
 
 O fine-tuning roda em GPU gratuita (Colab/Kaggle, T4) com `uv sync --extra train`.
 
+### Com Docker (sem instalar Python)
+
+Se você não quer instalar Python e uv, ou se o Windows bloqueia bibliotecas compiladas (por exemplo, pelo Smart App Control), dá para rodar tudo num container Linux. Basta ter o [Docker Desktop](https://www.docker.com/products/docker-desktop/) aberto.
+
+Na pasta do projeto, no **PowerShell**:
+
+```powershell
+docker run -it --rm -v "${PWD}:/work" -v review-venv:/venv -e UV_PROJECT_ENVIRONMENT=/venv -w /work ghcr.io/astral-sh/uv:bookworm-slim bash -c "uv sync && uv run pytest"
+```
+
+No **Linux, macOS ou WSL**:
+
+```bash
+docker run -it --rm -v "$(pwd):/work" -v review-venv:/venv -e UV_PROJECT_ENVIRONMENT=/venv -w /work ghcr.io/astral-sh/uv:bookworm-slim bash -c "uv sync && uv run pytest"
+```
+
+Para rodar outro comando, troque `uv run pytest` no final. Por exemplo, `uv run python scripts/review_gold.py` para revisar o teste ouro.
+
+- `-v ...:/work` compartilha a pasta do projeto com o container. Os arquivos gerados (rótulos, resultados) ficam salvos no seu computador.
+- `-v review-venv:/venv` guarda as dependências num volume do Docker. A primeira execução leva alguns minutos, e as seguintes já começam com tudo instalado.
+- `-it` permite interagir com os scripts pelo terminal.
+- O `.env` com as chaves é lido da pasta do projeto, como na execução local.
+
 ## Limitações
 
 - **Rótulos do professor não são verdade absoluta.** O aluno aprende a imitar o Gemini, inclusive seus erros; o teste ouro revisado à mão mede o quanto isso pesa.
