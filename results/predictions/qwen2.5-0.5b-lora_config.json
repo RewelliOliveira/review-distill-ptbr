@@ -1,0 +1,92 @@
+{
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "student_prompt_version": "s1",
+  "seed": 42,
+  "hparams": {
+    "num_train_epochs": 3,
+    "per_device_train_batch_size": 16,
+    "gradient_accumulation_steps": 1,
+    "learning_rate": 0.0002,
+    "lr_scheduler_type": "cosine",
+    "warmup_steps": 10,
+    "weight_decay": 0.0,
+    "max_length": 512
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": "all-linear"
+  },
+  "precision": "fp32 weights + fp16 mixed precision (train); merged fp16 (inference)",
+  "generation": {
+    "batch_size": 16,
+    "max_new_tokens": 128,
+    "do_sample": false
+  },
+  "latency_mode": "batched (16/batch), Tesla T4",
+  "train_size": 1800,
+  "val_size": 200,
+  "train_metrics": {
+    "train_runtime": 470.0083,
+    "train_samples_per_second": 11.489,
+    "train_steps_per_second": 0.721,
+    "total_flos": 2435104117585920.0,
+    "train_loss": 0.03152806063493093,
+    "epoch": 3.0
+  },
+  "best_checkpoint": "/content/checkpoints/checkpoint-226",
+  "val_metrics": {
+    "n": 200,
+    "json_valid_pct": 100.0,
+    "aspects_macro_f1": 0.8153,
+    "aspect_f1": {
+      "delivery_time": 0.9272,
+      "product_quality": 0.8024,
+      "as_described": 0.8123,
+      "order_accuracy": 0.7747,
+      "packaging": 0.7523,
+      "customer_service": 0.8231
+    },
+    "main_issue_macro_f1": 0.7186,
+    "main_issue_accuracy": 0.825,
+    "main_issue_f1_per_class": {
+      "none": 0.9434,
+      "late_delivery": 0.7333,
+      "not_delivered": 0.8421,
+      "wrong_item": 0.75,
+      "missing_item": 0.8837,
+      "damaged": 0.625,
+      "poor_quality": 0.8108,
+      "not_as_described": 0.5263,
+      "bad_service": 0.5714,
+      "other": 0.5
+    },
+    "main_issue_support": {
+      "none": 78,
+      "late_delivery": 15,
+      "not_delivered": 21,
+      "wrong_item": 12,
+      "missing_item": 22,
+      "damaged": 7,
+      "poor_quality": 18,
+      "not_as_described": 13,
+      "bad_service": 7,
+      "other": 7
+    },
+    "needs_contact_f1": 0.9212,
+    "needs_contact_precision": 0.9157,
+    "needs_contact_recall": 0.9268,
+    "exact_match_pct": 55.5,
+    "latency_ms_mean": 176.6227,
+    "latency_ms_p50": 160.0785,
+    "latency_ms_p95": 199.1041
+  },
+  "versions": {
+    "python": "3.13.16",
+    "torch": "2.14.1+cu130",
+    "transformers": "5.22.1",
+    "trl": "1.18.0",
+    "peft": "0.21.2"
+  }
+}
