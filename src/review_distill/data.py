@@ -22,7 +22,7 @@ def build_text(title: object, message: object) -> str:
     parts = []
     for part in (title, message):
         if isinstance(part, str):
-            part = " ".join(part.split())  # collapse \r\n and repeated whitespace
+            part = " ".join(part.split())
             if part:
                 parts.append(part)
     return ". ".join(parts)

@@ -78,9 +78,6 @@ def run(reviews, client, paths, **cfg):
     return stats, clock
 
 
-# ---------------------------------------------------------------- parsing
-
-
 def test_parse_all_valid() -> None:
     batch = [("a", "x"), ("b", "y")]
     valid, invalid = parse_batch_response(json.dumps([item("a"), item("b")]), batch)
@@ -117,18 +114,12 @@ def test_parse_bad_response_marks_whole_batch_invalid(raw: str, reason: str) -> 
     assert {(r["review_id"], r["reason"]) for r in invalid} == {("a", reason), ("b", reason)}
 
 
-# ---------------------------------------------------------------- cache
-
-
 def test_read_jsonl_ignores_truncated_line(tmp_path: Path) -> None:
     p = tmp_path / "x.jsonl"
     append_jsonl(p, [{"review_id": "a"}])
     with p.open("a", encoding="utf-8") as f:
         f.write('{"review_id": "b", "aspe')  # crash mid-write
     assert read_ids(p) == {"a"}
-
-
-# ---------------------------------------------------------------- loop
 
 
 def test_batches_and_writes_labels(paths) -> None:

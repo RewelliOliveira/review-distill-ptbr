@@ -115,7 +115,7 @@ class LabelingConfig:
     max_retries: int = 5
     backoff_base_s: float = 2.0
     backoff_max_s: float = 60.0
-    retry_invalid: bool = False  # re-send reviews previously logged as invalid
+    retry_invalid: bool = False
 
 
 @dataclass
@@ -126,9 +126,6 @@ class LabelingStats:
     skipped_cached: int = 0
     stopped_reason: str | None = None
     errors: list[str] = field(default_factory=list)
-
-
-# ---------------------------------------------------------------- JSONL cache
 
 
 def read_jsonl(path: Path) -> Iterator[dict[str, Any]]:
@@ -159,9 +156,6 @@ def append_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
         f.flush()
-
-
-# ---------------------------------------------------------------- parsing
 
 
 def parse_batch_response(
@@ -220,9 +214,6 @@ def parse_batch_response(
     return valid, invalid
 
 
-# ---------------------------------------------------------------- main loop
-
-
 def _batched(seq: Sequence[Any], size: int) -> Iterator[Sequence[Any]]:
     for i in range(0, len(seq), size):
         yield seq[i : i + size]
@@ -262,7 +253,7 @@ def _call_with_retry(
             if attempt == config.max_retries:
                 raise
             delay = min(config.backoff_max_s, config.backoff_base_s * 2**attempt)
-            delay *= 1 + rng.random() * 0.25  # jitter
+            delay *= 1 + rng.random() * 0.25
             logger.warning("transient error (%s); retry %d in %.1fs", e, attempt + 1, delay)
             sleep(delay)
         else:
