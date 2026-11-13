@@ -66,13 +66,13 @@ def test_roundtrip_json() -> None:
 @pytest.mark.parametrize(
     "mutate",
     [
-        lambda x: x["aspects"].update(delivery_time="neutral"),  # invalid sentiment
-        lambda x: x["aspects"].pop("packaging"),  # missing aspect
-        lambda x: x["aspects"].update(price="negative"),  # unknown aspect
-        lambda x: x.update(main_issue="slow"),  # invalid issue
-        lambda x: x.pop("needs_contact"),  # missing field
-        lambda x: x.update(needs_contact="maybe"),  # not a bool
-        lambda x: x.update(extra_field=1),  # unknown top-level field
+        lambda x: x["aspects"].update(delivery_time="neutral"),
+        lambda x: x["aspects"].pop("packaging"),
+        lambda x: x["aspects"].update(price="negative"),
+        lambda x: x.update(main_issue="slow"),
+        lambda x: x.pop("needs_contact"),
+        lambda x: x.update(needs_contact="maybe"),
+        lambda x: x.update(extra_field=1),
     ],
 )
 def test_invalid_diagnosis_rejected(mutate) -> None:
