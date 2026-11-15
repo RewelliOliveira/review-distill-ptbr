@@ -1,8 +1,9 @@
 """Gradio demo: diagnose a Portuguese customer review with the distilled student model.
 
-Runs on a free CPU Hugging Face Space. The LoRA adapter is merged into the base model at
-startup; the prompt format and the output parser are the ones used in training and
-evaluation (review_distill.inference), copied into the Space by scripts/publish_hf.py.
+Runs on Colab (notebooks/03_demo.ipynb, GPU or CPU), locally (`python app/app.py`) or on a
+Hugging Face Space. The LoRA adapter is downloaded from the Hub and merged into the base
+model at startup; the prompt format and the output parser are the ones used in training
+and evaluation (review_distill.inference). Set SHARE=1 to get a public gradio.live link.
 """
 
 import json
@@ -55,17 +56,22 @@ EXAMPLES = [
     "Produto bom, mas a caixa chegou toda amassada.",
 ]
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE_LABEL = "numa GPU" if DEVICE == "cuda" else "numa CPU"
 torch.set_num_threads(os.cpu_count() or 2)
 tokenizer = AutoTokenizer.from_pretrained(ADAPTER_REPO)
 _base = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
-model = PeftModel.from_pretrained(_base, ADAPTER_REPO).merge_and_unload().eval()
+model = PeftModel.from_pretrained(_base, ADAPTER_REPO).merge_and_unload()
+if DEVICE == "cuda":
+    model = model.half()
+model = model.to(DEVICE).eval()
 
 
 def generate(text: str) -> tuple[str, float]:
     prompt = tokenizer.apply_chat_template(
         prompt_messages(text), tokenize=False, add_generation_prompt=True
     )
-    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
     start = time.perf_counter()
     with torch.inference_mode():
         output = model.generate(
@@ -100,7 +106,7 @@ def diagnose(text: str) -> tuple[str, str]:
         f"### Problema principal: {ISSUE_LABELS[d['main_issue']]}\n\n"
         f"**Precisa contatar o cliente?** {contact}\n\n"
         f"| Aspecto | Avaliação |\n|---|---|\n{rows}\n\n"
-        f"<sub>Gerado em {seconds:.1f} s numa CPU gratuita.</sub>"
+        f"<sub>Gerado em {seconds:.1f} s {DEVICE_LABEL}.</sub>"
     )
     return summary, json.dumps(d, ensure_ascii=False, indent=2)
 
@@ -114,7 +120,7 @@ No teste com 150 avaliações reais revisadas à mão, ele atinge cerca de 90% d
 modelo professor, rodando localmente e sem custo por chamada.
 [Código e resultados no GitHub](https://github.com/RewelliOliveira/review-distill-ptbr).
 
-A demo roda numa CPU gratuita, então cada análise leva alguns segundos.
+Numa GPU cada análise leva menos de um segundo; numa CPU, alguns segundos.
 """
 
 with gr.Blocks() as demo:
@@ -137,4 +143,4 @@ with gr.Blocks() as demo:
     review.submit(diagnose, inputs=review, outputs=[result, raw_json])
 
 if __name__ == "__main__":
-    demo.queue(default_concurrency_limit=1).launch()
+    demo.queue(default_concurrency_limit=1).launch(share=os.environ.get("SHARE") == "1")
