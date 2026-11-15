@@ -47,11 +47,11 @@ A definição oficial está em [`src/review_distill/schema.py`](src/review_disti
 ## Abordagem
 
 1. **Dados** — avaliações reais e públicas da [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) (~99 mil avaliações, 2016–2018).
-2. **Professor** — o Gemini rotula alguns milhares de avaliações com saída estruturada (JSON restrito ao schema), em lotes, com cada item validado por pydantic.
+2. **Professor** — o Gemini rotula 2.000 avaliações (400 por nota) com saída estruturada (JSON restrito ao schema), em lotes, com cada item validado por pydantic. O prompt passou por três versões, cada uma validada em amostras que a anterior não tinha visto ([histórico](results/prompt_changelog.md)).
 3. **Teste ouro** — 150 avaliações (30 por nota) revisadas à mão, usadas só na avaliação final (nunca em treino nem em ajuste de prompt).
-4. **Baselines** — TF-IDF + regressão logística, BERTimbau e Gemini zero-shot.
+4. **Baseline** — TF-IDF + regressão logística, treinado com os mesmos rótulos, como régua mínima.
 5. **Aluno** — modelo pequeno (Qwen2.5-0.5B/1.5B-Instruct) ajustado com LoRA nos rótulos do professor.
-6. **Avaliação** — F1 por aspecto, % de JSON válido, latência e custo por 1.000 avaliações, todos no mesmo teste ouro e com o mesmo script.
+6. **Avaliação** — F1 por aspecto e por classe, % de JSON válido e latência, todos no mesmo teste ouro e com o mesmo script.
 
 ## Dados
 
@@ -76,13 +76,14 @@ Os textos são curtos (mediana de 10 palavras, máximo de 48) e as avaliações 
 
 Todos os modelos são avaliados no mesmo teste ouro (150 avaliações revisadas), com o mesmo script ([`scripts/evaluate.py`](scripts/evaluate.py)) e as mesmas métricas ([`src/review_distill/metrics.py`](src/review_distill/metrics.py)). Os números completos, com F1 por aspecto e por classe e a configuração de cada modelo, estão em [`results/`](results/).
 
+![Comparação dos modelos no teste ouro](results/figures/model_comparison.png)
+
 | Modelo | Macro-F1 aspectos | Macro-F1 `main_issue` | Acurácia `main_issue` | F1 `needs_contact` | JSON válido | Latência (ms/aval.) | Custo / 1.000 aval. |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Gemini 3.5 Flash-Lite, prompt v3 (professor)¹ | 0,970 | 0,921 | 0,960 | 0,957 | 100% | 372² | ~121 mil tokens de entrada + ~140 mil de saída |
 | **Qwen2.5-1.5B + LoRA (aluno, modelo final)**⁵ | **0,869** | **0,760** | **0,853** | **0,917** | 100% | 227⁶ | ≈ 0 por chamada (GPU própria) |
 | Qwen2.5-0.5B + LoRA (aluno)⁵ | 0,780 | 0,557 | 0,760 | 0,887 | 100% | 178⁶ | ≈ 0 por chamada (GPU própria) |
 | TF-IDF + regressão logística³ | 0,690 | 0,632 | 0,740 | 0,904 | 100%⁴ | 2,9 | ≈ 0 (CPU local) |
-| BERTimbau | – | – | – | – | – | – | – |
 
 - **Macro-F1 aspectos:** para cada um dos 6 aspectos, F1 macro sobre `positive`, `negative` e `not_mentioned`; depois, a média dos 6. **Macro-F1 `main_issue`:** média do F1 das 10 classes. **F1 `needs_contact`:** F1 da classe positiva (precisa de contato). Uma saída inválida conta como erro em todos os campos.
 - ¹ **O número do professor é um teto otimista.** O teste ouro foi pré-revisado com auxílio de LLM, partindo dos rótulos do próprio Gemini, e a decisão final sobre cada rótulo foi humana: 16 dos 150 rótulos foram corrigidos. Partir das respostas do professor tende a ancorar o revisor nelas, o que favorece o Gemini nesta comparação. Os modelos treinados com os rótulos do Gemini (o aluno e o TF-IDF) não têm essa vantagem.
@@ -115,6 +116,18 @@ Nos aspectos, os erros se concentram em `product_quality` (19 avaliações) e `c
 
 O TF-IDF vai bem em `needs_contact` e em problemas com vocabulário marcado (`not_delivered`: F1 0,83; `missing_item`: 0,82), mas erra mais nas classes raras e vagas (`bad_service`: 0,33; `other`: 0,38) e no aspecto `as_described` (0,51), que depende de entender a comparação com o anúncio.
 
+## O que as avaliações mostram
+
+Os mesmos rótulos permitem olhar para o negócio, e não só para o modelo. Os gráficos abaixo usam os rótulos do professor nas 2.000 avaliações do pool; no segundo, os números são reponderados pela distribuição real das notas, para estimar o conjunto inteiro e não a amostra estratificada.
+
+![Avaliações que precisam de contato, por nota](results/figures/contact_by_score.png)
+
+**A nota não basta para priorizar o atendimento.** 40% das avaliações de 3 estrelas e 10% das de 4 estrelas descrevem um problema sem solução, como um item faltando ou um pedido que não chegou. Uma triagem só pela nota deixaria esses clientes de fora.
+
+![Problema principal entre as avaliações com texto](results/figures/main_issues.png)
+
+**Logística e pedido incompleto lideram.** Pedido não entregue (9%) e item faltando (7%) são os problemas mais citados, à frente da qualidade do produto (5%). 59% das avaliações com texto não relatam problema.
+
 ## Como reproduzir
 
 ```bash
@@ -128,6 +141,7 @@ uv run python scripts/review_gold.py           # revisão manual do ouro
 uv run python scripts/make_splits.py           # treino (90%) e validação (10%), estratificados por main_issue
 uv run python scripts/evaluate.py --model gemini-teacher   # avalia o professor no ouro
 uv run python scripts/evaluate.py --model tfidf-logreg     # treina e avalia o baseline TF-IDF
+uv run python scripts/make_figures.py                      # gera os gráficos em results/figures/
 uv run pytest
 ```
 
@@ -182,6 +196,14 @@ Para rodar outro comando, troque `uv run pytest` no final. Por exemplo, `uv run 
 - **Classes raras e vagas continuam fracas.** Mesmo o modelo final tem F1 de 0,29 em `bad_service` e 0,38 em `other`. São as classes com menos exemplos (61 e 62 no treino; 2 e 11 no ouro) e as de definição mais aberta; os números delas no ouro oscilam muito com uma única avaliação.
 - **O aluno herda os erros do professor.** Onde o Gemini erra de forma sistemática (por exemplo, não pedir contato para produto que não funciona), o aluno repete o erro. Corrigir isso exige melhorar os rótulos de treino, não o modelo.
 - **O schema não cobre preço e frete.** Reclamações de preço ou de frete caro só cabem em `other`.
+
+## Próximos passos
+
+- **Melhorar os rótulos onde o professor erra:** revisar à mão os casos de defeito e de produto diferente do anúncio no treino, já que o aluno herda esses erros.
+- **Mais exemplos das classes raras** (`bad_service`, `other`, `damaged`), por amostragem direcionada.
+- **Baseline com BERTimbau**, um classificador de português sem geração, para comparar com o aluno.
+- **Quantização (int8/int4)** para reduzir a latência e rodar em CPU.
+- **Testar em outro domínio**, como avaliações de delivery de comida, para medir a generalização.
 
 ## Licença
 
