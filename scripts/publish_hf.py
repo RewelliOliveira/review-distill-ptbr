@@ -19,6 +19,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GITHUB_URL = "https://github.com/RewelliOliveira/review-distill-ptbr"
+COLAB_DEMO_URL = (
+    "https://colab.research.google.com/github/RewelliOliveira/review-distill-ptbr/"
+    "blob/main/notebooks/03_demo.ipynb"
+)
 BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 MODEL_NAME = "review-distill-qwen2.5-1.5b-lora"
 DATASET_NAME = "olist-reviews-diagnosis-ptbr"
@@ -101,7 +105,7 @@ qual é o problema principal e se o cliente precisa ser contatado.
 
 É o modelo "aluno" de um projeto de **destilação**: um LLM grande ({teacher}) rotulou 2.000
 avaliações reais da Olist, e um modelo pequeno foi ajustado para imitá-lo. Código, dados e
-análise completa: [{github}]({github}). Demo: [{user}/{space}](https://huggingface.co/spaces/{user}/{space}).
+análise completa: [{github}]({github}). Demo interativa no Colab (grátis): [abrir]({colab}).
 
 ## Exemplo de saída
 
@@ -314,7 +318,8 @@ def main() -> None:
         "--only",
         nargs="+",
         choices=["model", "dataset", "space"],
-        default=["model", "dataset", "space"],
+        default=["model", "dataset"],
+        help="what to publish (default: model dataset; a Gradio Space needs a PRO account)",
     )
     parser.add_argument("--private", action="store_true", help="create private repos")
     parser.add_argument("--dry-run", action="store_true", help="build folders, do not upload")
@@ -330,6 +335,7 @@ def main() -> None:
         "teacher": TEACHER,
         "github": GITHUB_URL,
         "table": results_table(),
+        "colab": COLAB_DEMO_URL,
     }
     staging = args.staging or Path(tempfile.mkdtemp(prefix="publish_hf_"))
     staging.mkdir(parents=True, exist_ok=True)
