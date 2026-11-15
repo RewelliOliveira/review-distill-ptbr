@@ -12,6 +12,7 @@ Destilação de um LLM grande (Gemini) em um modelo pequeno (~0,5–1,5B parâme
 | 🤗 Dataset rotulado (2.150 avaliações) | [Rewelli/olist-reviews-diagnosis-ptbr](https://huggingface.co/datasets/Rewelli/olist-reviews-diagnosis-ptbr) |
 | ▶️ Demo interativa (Colab, grátis) | [`notebooks/03_demo.ipynb`](https://colab.research.google.com/github/RewelliOliveira/review-distill-ptbr/blob/main/notebooks/03_demo.ipynb) |
 | 🏋️ Notebook de treino (Colab) | [`notebooks/02_finetune.ipynb`](notebooks/02_finetune.ipynb) |
+| 📊 Notebook de resultados e gráficos | [`notebooks/04_insights.ipynb`](notebooks/04_insights.ipynb) |
 
 ## O problema
 
@@ -118,7 +119,7 @@ O TF-IDF vai bem em `needs_contact` e em problemas com vocabulário marcado (`no
 
 ## O que as avaliações mostram
 
-Os mesmos rótulos permitem olhar para o negócio, e não só para o modelo. Os gráficos abaixo usam os rótulos do professor nas 2.000 avaliações do pool; no segundo, os números são reponderados pela distribuição real das notas, para estimar o conjunto inteiro e não a amostra estratificada.
+Os mesmos rótulos permitem olhar para o negócio, e não só para o modelo (passo a passo em [`notebooks/04_insights.ipynb`](notebooks/04_insights.ipynb)). Os gráficos abaixo usam os rótulos do professor nas 2.000 avaliações do pool; no segundo, os números são reponderados pela distribuição real das notas, para estimar o conjunto inteiro e não a amostra estratificada.
 
 ![Avaliações que precisam de contato, por nota](results/figures/contact_by_score.png)
 
