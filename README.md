@@ -2,7 +2,16 @@
 
 Destilação de um LLM grande (Gemini) em um modelo pequeno (~0,5–1,5B parâmetros) para extrair **diagnósticos estruturados** de avaliações de clientes de e-commerce em português — com qualidade próxima à do modelo grande e uma fração do custo e da latência.
 
-> 🚧 Em construção. Links para modelo, dataset, demo e notebook serão adicionados na publicação.
+[![Abrir a demo no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RewelliOliveira/review-distill-ptbr/blob/main/notebooks/03_demo.ipynb)
+
+**Resultado:** um Qwen2.5-1.5B ajustado com LoRA em 17 minutos numa GPU gratuita atinge cerca de 90% da qualidade do Gemini no teste com 150 avaliações reais revisadas à mão, rodando localmente e sem custo por chamada ([detalhes](#resultados)).
+
+| | Link |
+|---|---|
+| 🤗 Modelo (adaptador LoRA) | [Rewelli/review-distill-qwen2.5-1.5b-lora](https://huggingface.co/Rewelli/review-distill-qwen2.5-1.5b-lora) |
+| 🤗 Dataset rotulado (2.150 avaliações) | [Rewelli/olist-reviews-diagnosis-ptbr](https://huggingface.co/datasets/Rewelli/olist-reviews-diagnosis-ptbr) |
+| ▶️ Demo interativa (Colab, grátis) | [`notebooks/03_demo.ipynb`](https://colab.research.google.com/github/RewelliOliveira/review-distill-ptbr/blob/main/notebooks/03_demo.ipynb) |
+| 🏋️ Notebook de treino (Colab) | [`notebooks/02_finetune.ipynb`](notebooks/02_finetune.ipynb) |
 
 ## O problema
 
@@ -155,6 +164,11 @@ Para rodar outro comando, troque `uv run pytest` no final. Por exemplo, `uv run 
 - `-v review-venv:/venv` guarda as dependências num volume do Docker. A primeira execução leva alguns minutos, e as seguintes já começam com tudo instalado.
 - `-it` permite interagir com os scripts pelo terminal.
 - O `.env` com as chaves é lido da pasta do projeto, como na execução local.
+
+### Demo e publicação
+
+- **Demo no Colab:** abra [`notebooks/03_demo.ipynb`](notebooks/03_demo.ipynb) pelo botão acima e execute tudo. Ele instala o projeto, baixa o modelo do Hub e abre a interface ([`app/app.py`](app/app.py)) com um link público temporário. Localmente: `uv sync --extra train --extra app` e `SHARE=1 uv run python app/app.py`.
+- **Publicação no Hugging Face:** [`scripts/publish_hf.py`](scripts/publish_hf.py) publica o modelo e o dataset, com cards gerados a partir de `results/*.json`. Roda no Colab, onde o adaptador treinado fica no Drive (`--adapter-dir`), com `HF_TOKEN` de escrita. A opção `--only space` publica a demo num Space, mas Spaces com Gradio exigem conta PRO no Hugging Face.
 
 ## Limitações
 
